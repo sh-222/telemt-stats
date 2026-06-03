@@ -1,10 +1,14 @@
 #!/bin/bash
 
-# Запрашиваем метрики
-data=$(curl -s http://127.0.0.1:9090/metrics)
+# Настройка URL метрик: из переменной окружения или  дефолт
+TELEMT_METRICS_URL="${TELEMT_METRICS_URL:-http://127.0.0.1:9090/metrics}"
+
+# Запрос метрики
+data=$(curl -s "$TELEMT_METRICS_URL")
 
 if [ -z "$data" ]; then
-    echo "Ошибка: не удалось получить данные от прокси. Проверь, работает ли порт 9090."
+    echo "Ошибка: не удалось получить данные по адресу $TELEMT_METRICS_URL"
+    echo "Проверь конфигурацию портов или переменную TELEMT_METRICS_URL."
     exit 1
 fi
 
