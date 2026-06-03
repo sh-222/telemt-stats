@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Запрашиваем метрики
+data=$(curl -s http://127.0.0.1:9090/metrics)
+
+if [ -z "$data" ]; then
+    echo "Ошибка: не удалось получить данные от прокси. Проверь, работает ли порт 9090."
+    exit 1
+fi
+
+echo -e "\n=== МОНИТОРИНГ ПРОКСИ TELEMT ===\n"
+
+echo "👥 ОНЛАЙН И СОЕДИНЕНИЯ:"
+echo "$data" | awk '!/^#/ {
+    if ($0 ~ /telemt_ip_tracker_users{scope="active"}/) print "Активные пользователи: " $2
+    if ($0 ~ /telemt_ip_tracker_users{scope="recent"}/) print "Заходили недавно:      " $2
+    if ($0 ~ /telemt_user_connections_current/) {
+        split($0, a, "\""); print "Текущие потоки [" a[2] "]:   " $2
+    }
+}'
+
+echo -e "\n📈 ТРАФИК И ПАКЕТЫ:"
+echo "$data" | awk '!/^#/ {
+    if ($0 ~ /telemt_user_octets_from_client/) {
+        split($0, a, "\""); print "Отправлено [" a[2] "]:     " sprintf("%.2f", $2/1024/1024) " МБ"
+    }
+    if ($0 ~ /telemt_user_octets_to_client/) {
+        split($0, a, "\""); print "Скачано [" a[2] "]:        " sprintf("%.2f", $2/1024/1024) " МБ"
+    }
+    if ($0 ~ /telemt_user_msgs_from_client/) {
+        split($0, a, "\""); print "Пакетов от [" a[2] "]:     " $2
+    }
+    if ($0 ~ /telemt_user_msgs_to_client/) {
+        split($0, a, "\""); print "Пакетов к [" a[2] "]:      " $2
+    }
+}'
+
+echo -e "\n🌐 АДРЕСА И ЛИМИТЫ:"
+echo "$data" | awk '!/^#/ {
+    if ($0 ~ /telemt_user_unique_ips_current/) {
+        split($0, a, "\""); print "Активных IP [" a[2] "]:     " $2
+    }
+    if ($0 ~ /telemt_user_unique_ips_recent_window/) {
+        split($0, a, "\""); print "IP за окно [" a[2] "]:     " $2
+    }
+    if ($0 ~ /telemt_user_unique_ips_limit/) {
+        split($0, a, "\""); print "Лимит на IP [" a[2] "]:     " ($2 == 0 ? "Безлимит" : $2)
+    }
+}'
+
+echo -e "\n================================\n"
